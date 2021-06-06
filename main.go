@@ -22,7 +22,6 @@ import (
 	"os"
 	"syscall"
 
-	"github.com/NVIDIA/gpu-monitoring-tools/bindings/go/nvml"
 	"github.com/fsnotify/fsnotify"
 	cli "github.com/urfave/cli/v2"
 	pluginapi "k8s.io/kubelet/pkg/apis/deviceplugin/v1beta1"
@@ -109,19 +108,19 @@ func validateFlags(c *cli.Context) error {
 
 func start(c *cli.Context) error {
 	log.Println("Loading NVML")
-	if err := nvml.Init(); err != nil {
-		log.SetOutput(os.Stderr)
-		log.Printf("Failed to initialize NVML: %v.", err)
-		log.Printf("If this is a GPU node, did you set the docker default runtime to `nvidia`?")
-		log.Printf("You can check the prerequisites at: https://github.com/NVIDIA/k8s-device-plugin#prerequisites")
-		log.Printf("You can learn how to set the runtime at: https://github.com/NVIDIA/k8s-device-plugin#quick-start")
-		log.Printf("If this is not a GPU node, you should set up a toleration or nodeSelector to only deploy this plugin on GPU nodes")
-		if failOnInitErrorFlag {
-			return fmt.Errorf("failed to initialize NVML: %v", err)
-		}
-		select {}
-	}
-	defer func() { log.Println("Shutdown of NVML returned:", nvml.Shutdown()) }()
+	// if err := nvml.Init(); err != nil {
+	// 	log.SetOutput(os.Stderr)
+	// 	log.Printf("Failed to initialize NVML: %v.", err)
+	// 	log.Printf("If this is a GPU node, did you set the docker default runtime to `nvidia`?")
+	// 	log.Printf("You can check the prerequisites at: https://github.com/NVIDIA/k8s-device-plugin#prerequisites")
+	// 	log.Printf("You can learn how to set the runtime at: https://github.com/NVIDIA/k8s-device-plugin#quick-start")
+	// 	log.Printf("If this is not a GPU node, you should set up a toleration or nodeSelector to only deploy this plugin on GPU nodes")
+	// 	if failOnInitErrorFlag {
+	// 		return fmt.Errorf("failed to initialize NVML: %v", err)
+	// 	}
+	// 	select {}
+	// }
+	// defer func() { log.Println("Shutdown of NVML returned:", nvml.Shutdown()) }()
 
 	log.Println("Starting FS watcher.")
 	watcher, err := newFSWatcher(pluginapi.DevicePluginPath)

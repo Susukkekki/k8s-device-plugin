@@ -237,6 +237,7 @@ func (m *NvidiaDevicePlugin) ListAndWatch(e *pluginapi.Empty, s pluginapi.Device
 	}
 }
 
+// sskk: K8s에서 GPU 할당을 요청하면 이 함수가 호출된다.
 // GetPreferredAllocation returns the preferred allocation from the set of devices specified in the request
 func (m *NvidiaDevicePlugin) GetPreferredAllocation(ctx context.Context, r *pluginapi.PreferredAllocationRequest) (*pluginapi.PreferredAllocationResponse, error) {
 	response := &pluginapi.PreferredAllocationResponse{}

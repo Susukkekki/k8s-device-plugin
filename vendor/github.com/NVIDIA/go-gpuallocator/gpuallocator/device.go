@@ -38,7 +38,7 @@ func NewDevices() ([]*Device, error) {
 
 	devices := []*Device{}
 	for i := 0; i < int(count); i++ {
-		device, err := nvml.NewDevice(uint(i))
+		device, err := nvml.NewDeviceLite(uint(i))
 		if err != nil {
 			return nil, fmt.Errorf("error creating nvml.Device %v: %v", i, err)
 		}
@@ -46,27 +46,27 @@ func NewDevices() ([]*Device, error) {
 		devices = append(devices, &Device{device, i, make(map[int][]P2PLink)})
 	}
 
-	for i, d1 := range devices {
-		for j, d2 := range devices {
-			if d1 != d2 {
-				p2plink, err := nvml.GetP2PLink(d1.Device, d2.Device)
-				if err != nil {
-					return nil, fmt.Errorf("error getting P2PLink for devices (%v, %v): %v", i, j, err)
-				}
-				if p2plink != nvml.P2PLinkUnknown {
-					d1.Links[d2.Index] = append(d1.Links[d2.Index], P2PLink{d2, p2plink})
-				}
+	// for i, d1 := range devices {
+	// 	for j, d2 := range devices {
+	// 		if d1 != d2 {
+	// 			p2plink, err := nvml.GetP2PLink(d1.Device, d2.Device)
+	// 			if err != nil {
+	// 				return nil, fmt.Errorf("error getting P2PLink for devices (%v, %v): %v", i, j, err)
+	// 			}
+	// 			if p2plink != nvml.P2PLinkUnknown {
+	// 				d1.Links[d2.Index] = append(d1.Links[d2.Index], P2PLink{d2, p2plink})
+	// 			}
 
-				nvlink, err := nvml.GetNVLink(d1.Device, d2.Device)
-				if err != nil {
-					return nil, fmt.Errorf("error getting NVLink for devices (%v, %v): %v", i, j, err)
-				}
-				if nvlink != nvml.P2PLinkUnknown {
-					d1.Links[d2.Index] = append(d1.Links[d2.Index], P2PLink{d2, nvlink})
-				}
-			}
-		}
-	}
+	// 			nvlink, err := nvml.GetNVLink(d1.Device, d2.Device)
+	// 			if err != nil {
+	// 				return nil, fmt.Errorf("error getting NVLink for devices (%v, %v): %v", i, j, err)
+	// 			}
+	// 			if nvlink != nvml.P2PLinkUnknown {
+	// 				d1.Links[d2.Index] = append(d1.Links[d2.Index], P2PLink{d2, nvlink})
+	// 			}
+	// 		}
+	// 	}
+	// }
 
 	return devices, nil
 }

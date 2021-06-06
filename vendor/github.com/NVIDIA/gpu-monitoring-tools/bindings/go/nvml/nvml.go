@@ -7,6 +7,7 @@ import "C"
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -299,8 +300,27 @@ func Shutdown() error {
 	return shutdown()
 }
 
+func getFakeDeviceCount() uint {
+	data, err := ioutil.ReadFile("config.json")
+	if err != nil {
+		print(err)
+		return 0
+	}
+
+	var config interface{}
+	err = json.Unmarshal(data, &config)
+	if err != nil {
+		print(err)
+		return 0
+	}
+
+	m := config.(map[string]interface{})
+	return uint(m["count"].(float64))
+}
+
 func GetDeviceCount() (uint, error) {
-	return deviceGetCount()
+	return getFakeDeviceCount(), nil
+	// return deviceGetCount()
 }
 
 func GetDriverVersion() (string, error) {
@@ -446,21 +466,109 @@ func newDevice(h handle) (device *Device, err error) {
 	return
 }
 
-func NewDeviceLite(idx uint) (device *Device, err error) {
-	defer func() {
-		if r := recover(); r != nil {
-			err = r.(error)
-		}
-	}()
+func deviceGetUUID(idx uint) *string {
+	var uuid [0x60]C.char
 
-	h, err := deviceGetHandleByIndex(idx)
-	assert(err)
+	data, err := ioutil.ReadFile("config.json")
+	if err != nil {
+		print(err)
+		return nil
+	}
 
-	device, err = newDeviceLite(h)
-	assert(err)
+	var config interface{}
+	err = json.Unmarshal(data, &config)
+	if err != nil {
+		print(err)
+		return nil
+	}
 
-	return device, err
+	m := config.(map[string]interface{})
+	uuid[0] = C.char(m["id"].(string)[0])
+
+	for i := 1; i < 0x60; i++ {
+		// uuid[i] = C.char(i)
+		uuid[i] = C.char('0' + idx)
+	}
+
+	return stringPtr(&uuid[0])
 }
+
+func deviceGetPciInfo(idx uint) *string {
+	//var pci C.nvmlPciInfo_t
+
+	// r := C.nvmlDeviceGetPciInfo(h.dev, &pci)
+	// if r == C.NVML_ERROR_NOT_SUPPORTED {
+	// 	return nil, nil
+	// }
+	var i C.char
+	i = C.char(idx)
+	return stringPtr(&i)
+}
+
+func NewDeviceLite(idx uint) (device *Device, err error) {
+	// defer func() {
+	// 	if r := recover(); r != nil {
+	// 		err = r.(error)
+	// 	}
+	// }()
+	var h handle
+	//h, err := deviceGetHandleByIndex(idx)
+	// assert(err)
+
+	// device, err = newDeviceLite(h)
+	// assert(err)
+
+	// return device, err
+	// uuid, err := h.deviceGetUUID()
+	uuid := deviceGetUUID(idx)
+
+	// assert(err)
+	var minor *uint
+	var m C.uint
+	m = 0
+	minor = uintPtr(m)
+
+	// minor, err := h.deviceGetMinorNumber()
+	// assert(err)
+	// busid, err := h.deviceGetPciInfo()
+	// assert(err)
+	busid := deviceGetPciInfo(idx)
+
+	// if minor == nil || busid == nil || uuid == nil {
+	// 	return nil, ErrUnsupportedGPU
+	// }
+
+	path := fmt.Sprintf("/dev/nvidia%d", *minor)
+	// node, err := numaNode(*busid)
+	// assert(err)
+	var node *uint
+
+	return &Device{
+		handle:      h,
+		UUID:        *uuid,
+		Path:        path,
+		CPUAffinity: node,
+		PCI: PCIInfo{
+			BusID: *busid,
+		},
+	}, nil
+}
+
+// func NewDeviceLite(idx uint) (device *Device, err error) {
+// 	defer func() {
+// 		if r := recover(); r != nil {
+// 			err = r.(error)
+// 		}
+// 	}()
+
+// 	h, err := deviceGetHandleByIndex(idx)
+// 	assert(err)
+
+// 	device, err = newDeviceLite(h)
+// 	assert(err)
+
+// 	return device, err
+// }
 
 func NewDeviceLiteByUUID(uuid string) (device *Device, err error) {
 	defer func() {

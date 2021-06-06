@@ -21,6 +21,7 @@ import (
 	"log"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/NVIDIA/gpu-monitoring-tools/bindings/go/nvml"
 
@@ -100,6 +101,28 @@ func (g *GpuDeviceManager) Devices() []*Device {
 	return devs
 }
 
+// func (g *GpuDeviceManager) Devices() []*Device {
+// 	n, err := nvml.GetDeviceCount()
+// 	check(err)
+
+// 	var devs []*Device
+// 	for i := uint(0); i < n; i++ {
+// 		d, err := nvml.NewDeviceLite(i)
+// 		check(err)
+
+// 		migEnabled, err := d.IsMigEnabled()
+// 		check(err)
+
+// 		if migEnabled && g.skipMigEnabledGPUs {
+// 			continue
+// 		}
+
+// 		devs = append(devs, buildDevice(d, []string{d.Path}, fmt.Sprintf("%v", i)))
+// 	}
+
+// 	return devs
+// }
+
 // Devices returns a list of devices from the MigDeviceManager
 func (m *MigDeviceManager) Devices() []*Device {
 	n, err := nvml.GetDeviceCount()
@@ -172,23 +195,23 @@ func checkHealth(stop <-chan interface{}, devices []*Device, unhealthy chan<- *D
 		return
 	}
 
-	eventSet := nvml.NewEventSet()
-	defer nvml.DeleteEventSet(eventSet)
+	// eventSet := nvml.NewEventSet()
+	// defer nvml.DeleteEventSet(eventSet)
 
-	for _, d := range devices {
-		gpu, _, _, err := nvml.ParseMigDeviceUUID(d.ID)
-		if err != nil {
-			gpu = d.ID
-		}
+	// for _, d := range devices {
+	// 	gpu, _, _, err := nvml.ParseMigDeviceUUID(d.ID)
+	// 	if err != nil {
+	// 		gpu = d.ID
+	// 	}
 
-		err = nvml.RegisterEventForDevice(eventSet, nvml.XidCriticalError, gpu)
-		if err != nil && strings.HasSuffix(err.Error(), "Not Supported") {
-			log.Printf("Warning: %s is too old to support healthchecking: %s. Marking it unhealthy.", d.ID, err)
-			unhealthy <- d
-			continue
-		}
-		check(err)
-	}
+	// 	err = nvml.RegisterEventForDevice(eventSet, nvml.XidCriticalError, gpu)
+	// 	if err != nil && strings.HasSuffix(err.Error(), "Not Supported") {
+	// 		log.Printf("Warning: %s is too old to support healthchecking: %s. Marking it unhealthy.", d.ID, err)
+	// 		unhealthy <- d
+	// 		continue
+	// 	}
+	// 	check(err)
+	// }
 
 	for {
 		select {
@@ -197,41 +220,43 @@ func checkHealth(stop <-chan interface{}, devices []*Device, unhealthy chan<- *D
 		default:
 		}
 
-		e, err := nvml.WaitForEvent(eventSet, 5000)
-		if err != nil && e.Etype != nvml.XidCriticalError {
-			continue
-		}
+		time.Sleep(500 * time.Microsecond)
 
-		// FIXME: formalize the full list and document it.
-		// http://docs.nvidia.com/deploy/xid-errors/index.html#topic_4
-		// Application errors: the GPU should still be healthy
-		if e.Edata == 31 || e.Edata == 43 || e.Edata == 45 {
-			continue
-		}
+		// e, err := nvml.WaitForEvent(eventSet, 5000)
+		// if err != nil && e.Etype != nvml.XidCriticalError {
+		// 	continue
+		// }
 
-		if e.UUID == nil || len(*e.UUID) == 0 {
-			// All devices are unhealthy
-			log.Printf("XidCriticalError: Xid=%d, All devices will go unhealthy.", e.Edata)
-			for _, d := range devices {
-				unhealthy <- d
-			}
-			continue
-		}
+		// // FIXME: formalize the full list and document it.
+		// // http://docs.nvidia.com/deploy/xid-errors/index.html#topic_4
+		// // Application errors: the GPU should still be healthy
+		// if e.Edata == 31 || e.Edata == 43 || e.Edata == 45 {
+		// 	continue
+		// }
 
-		for _, d := range devices {
-			// Please see https://github.com/NVIDIA/gpu-monitoring-tools/blob/148415f505c96052cb3b7fdf443b34ac853139ec/bindings/go/nvml/nvml.h#L1424
-			// for the rationale why gi and ci can be set as such when the UUID is a full GPU UUID and not a MIG device UUID.
-			gpu, gi, ci, err := nvml.ParseMigDeviceUUID(d.ID)
-			if err != nil {
-				gpu = d.ID
-				gi = 0xFFFFFFFF
-				ci = 0xFFFFFFFF
-			}
+		// if e.UUID == nil || len(*e.UUID) == 0 {
+		// 	// All devices are unhealthy
+		// 	log.Printf("XidCriticalError: Xid=%d, All devices will go unhealthy.", e.Edata)
+		// 	for _, d := range devices {
+		// 		unhealthy <- d
+		// 	}
+		// 	continue
+		// }
 
-			if gpu == *e.UUID && gi == *e.GpuInstanceId && ci == *e.ComputeInstanceId {
-				log.Printf("XidCriticalError: Xid=%d on Device=%s, the device will go unhealthy.", e.Edata, d.ID)
-				unhealthy <- d
-			}
-		}
+		// for _, d := range devices {
+		// 	// Please see https://github.com/NVIDIA/gpu-monitoring-tools/blob/148415f505c96052cb3b7fdf443b34ac853139ec/bindings/go/nvml/nvml.h#L1424
+		// 	// for the rationale why gi and ci can be set as such when the UUID is a full GPU UUID and not a MIG device UUID.
+		// 	gpu, gi, ci, err := nvml.ParseMigDeviceUUID(d.ID)
+		// 	if err != nil {
+		// 		gpu = d.ID
+		// 		gi = 0xFFFFFFFF
+		// 		ci = 0xFFFFFFFF
+		// 	}
+
+		// 	if gpu == *e.UUID && gi == *e.GpuInstanceId && ci == *e.ComputeInstanceId {
+		// 		log.Printf("XidCriticalError: Xid=%d on Device=%s, the device will go unhealthy.", e.Edata, d.ID)
+		// 		unhealthy <- d
+		// 	}
+		// }
 	}
 }
